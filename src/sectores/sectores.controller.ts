@@ -13,7 +13,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class SectoresController {
   constructor(private sectoresService: SectoresService) {}
 
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'MOZO', 'CAJERO')  
   @Get()
   @ApiOperation({ summary: 'Listar todos los sectores con sus mesas' })
   @ApiResponse({
