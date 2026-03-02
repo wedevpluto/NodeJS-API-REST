@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from '../auth/dto/update.user.dto';
+import { PaginationDto } from './dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -15,8 +17,8 @@ export class UsersController {
 
   @Roles('ADMIN')
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() pagination: PaginationDto) {
+    return this.usersService.findAll(pagination);
   }
 
   @Roles('ADMIN')
@@ -29,6 +31,12 @@ export class UsersController {
   @Post()
   create(@Body() body: CreateUserDto) {
     return this.usersService.create(body);
+  }
+
+  @Roles('ADMIN')
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() body: UpdateUserDto) {
+    return this.usersService.update(Number(id), body);
   }
 
   @Roles('ADMIN')

@@ -5,9 +5,21 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './database/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { SectoresModule } from './sectores/sectores.module';
+import { MesasModule } from './mesas/mesas.module';
+import { ArticulosModule } from './articulos/articulos.module';
+import { ComandasModule } from './comandas/comandas.module';
+import { PedidosModule } from './pedidos/pedidos.module';
+import { ArqueosModule } from './arqueos/arqueos.module';
+
 
 @Module({
   imports: [
+    ArqueosModule,
+    ComandasModule,
+    ArticulosModule,
+    MesasModule,
+    SectoresModule,
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
@@ -16,6 +28,12 @@ import { AuthModule } from './auth/auth.module';
     PrismaModule,
     UsersModule,
     AuthModule,
+    SectoresModule,
+    MesasModule,
+    ArticulosModule,
+    ComandasModule,
+    PedidosModule,
+    ArqueosModule,
   ],
   providers: [
     {

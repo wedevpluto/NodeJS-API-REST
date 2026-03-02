@@ -259,3 +259,11 @@ CI/CD pipeline
 Rate limiting
 
 API versioning
+
+
+
+
+# AUTOMATION SCRIPT FOR GETTING TOKEN
+
+source login.sh
+curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/users

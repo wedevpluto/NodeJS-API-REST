@@ -7,15 +7,108 @@ datasource db {
 }
 
 enum Role {
-  USER
   ADMIN
+  MOZO
+  CAJERO
+}
+
+enum EstadoMesa {
+  LIBRE
+  OCUPADA
+  RESERVADA
+}
+
+enum EstadoComanda {
+  ABIERTA
+  CERRADA
+  CANCELADA
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  EN_PREPARACION
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+
+enum CategoriaArticulo {
+  COMIDA
+  BEBIDA
+  POSTRE
+  ENTRADA
+  OTRO
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   password  String
   name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
+  role      Role      @default(MOZO)
+  createdAt DateTime  @default(now())
+  comandas  Comanda[] @relation("MozoComandas")
+  arqueos   Arqueo[]
+}
+
+model Sector {
+  id     Int     @id @default(autoincrement())
+  nombre String  @unique
+  mesas  Mesa[]
+}
+
+model Mesa {
+  id       Int        @id @default(autoincrement())
+  numero   Int        @unique
+  capacidad Int
+  estado   EstadoMesa @default(LIBRE)
+  sectorId Int
+  sector   Sector     @relation(fields: [sectorId], references: [id])
+  comandas Comanda[]
+}
+
+model Articulo {
+  id        Int               @id @default(autoincrement())
+  nombre    String
+  precio    Float
+  categoria CategoriaArticulo
+  disponible Boolean          @default(true)
+  pedidos   Pedido[]
+}
+
+model Comanda {
+  id        Int           @id @default(autoincrement())
+  mesaId    Int
+  mozoId    Int
+  estado    EstadoComanda @default(ABIERTA)
+  total     Float         @default(0)
+  createdAt DateTime      @default(now())
+  closedAt  DateTime?
+  mesa      Mesa          @relation(fields: [mesaId], references: [id])
+  mozo      User          @relation("MozoComandas", fields: [mozoId], references: [id])
+  pedidos   Pedido[]
+}
+
+model Pedido {
+  id         Int          @id @default(autoincrement())
+  comandaId  Int
+  articuloId Int
+  cantidad   Int
+  precio     Float
+  estado     EstadoPedido @default(PENDIENTE)
+  nota       String?
+  createdAt  DateTime     @default(now())
+  comanda    Comanda      @relation(fields: [comandaId], references: [id])
+  articulo   Articulo     @relation(fields: [articuloId], references: [id])
+}
+
+model Arqueo {
+  id          Int      @id @default(autoincrement())
+  cajeroId    Int
+  totalEfectivo Float
+  totalTarjeta  Float
+  totalGeneral  Float
+  fecha       DateTime @default(now())
+  observaciones String?
+  cajero      User     @relation(fields: [cajeroId], references: [id])
 }
