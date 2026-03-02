@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { ArticulosService } from './articulos.service';
-import { CreateArticuloDto } from './articulos/dto/create-articulo.dto';
+import { CreateArticuloDto } from './dto/create-articulo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
