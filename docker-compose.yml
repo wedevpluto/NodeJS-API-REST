@@ -1,7 +1,6 @@
 version: '3.9'
 
 services:
-
   postgres:
     image: postgres:16
     container_name: postgres_api
@@ -12,9 +11,32 @@ services:
       POSTGRES_DB: api_db
     ports:
       - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d api_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_enterprise
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/api_db
+      JWT_SECRET: supersecret
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: refreshsecret
+      JWT_REFRESH_EXPIRES_IN: 7d
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
