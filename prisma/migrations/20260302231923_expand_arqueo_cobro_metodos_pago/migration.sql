@@ -1,0 +1,46 @@
+/*
+  Warnings:
+
+  - You are about to drop the column `totalTarjeta` on the `Arqueo` table. All the data in the column will be lost.
+
+*/
+-- CreateEnum
+CREATE TYPE "MetodoPago" AS ENUM ('EFECTIVO', 'DEBITO', 'CREDITO', 'TRANSFERENCIA', 'QR', 'PEDIDOS_YA_CTA_CTE', 'PEDIDOS_YA_EFECTIVO', 'RAPPI_CTA_CTE', 'RAPPI_EFECTIVO');
+
+-- AlterTable
+ALTER TABLE "Arqueo" DROP COLUMN "totalTarjeta",
+ADD COLUMN     "billetes1000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "billetes10000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "billetes2000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "billetes20000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "billetes5000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "billetes50000" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "diferencia" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalCredito" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalDebito" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalPedidosYaCtaCte" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalPedidosYaEfectivo" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalQr" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalRappiCtaCte" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalRappiEfectivo" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "totalTransferencia" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ALTER COLUMN "totalEfectivo" SET DEFAULT 0;
+
+-- CreateTable
+CREATE TABLE "Cobro" (
+    "id" SERIAL NOT NULL,
+    "comandaId" INTEGER NOT NULL,
+    "metodoPago" "MetodoPago" NOT NULL,
+    "montoAbonado" DOUBLE PRECISION NOT NULL,
+    "vuelto" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "observaciones" TEXT,
+    "fecha" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Cobro_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Cobro_comandaId_key" ON "Cobro"("comandaId");
+
+-- AddForeignKey
+ALTER TABLE "Cobro" ADD CONSTRAINT "Cobro_comandaId_fkey" FOREIGN KEY ("comandaId") REFERENCES "Comanda"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

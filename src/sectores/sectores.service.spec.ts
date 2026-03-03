@@ -1,68 +1,98 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from '../auth/auth.service';
-import { UsersService } from '../users/users.service';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { UnauthorizedException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
+import { SectoresService } from './sectores.service';
+import { PrismaService } from '../database/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
-describe('AuthService', () => {
-  let service: AuthService;
+describe('SectoresService', () => {
+  let service: SectoresService;
 
-  const mockUsersService = {
-    findByEmail: jest.fn(),
-    create: jest.fn(),
-  };
-
-  const mockJwtService = {
-    sign: jest.fn().mockReturnValue('test-token'),
-  };
-
-  const mockConfigService = {
-    get: jest.fn().mockReturnValue('test-secret'),
+  const mockPrisma = {
+    sector: {
+      findMany:   jest.fn(),
+      findUnique: jest.fn(),
+      create:     jest.fn(),
+      update:     jest.fn(),
+      delete:     jest.fn(),
+    },
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        AuthService,
-        { provide: UsersService, useValue: mockUsersService },
-        { provide: JwtService, useValue: mockJwtService },
-        { provide: ConfigService, useValue: mockConfigService },
+        SectoresService,
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
-    service = module.get<AuthService>(AuthService);
+    service = module.get<SectoresService>(SectoresService);
+    jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('should be defined', () => expect(service).toBeDefined());
+
+  // ─── findAll ─────────────────────────────────────────────
+  describe('findAll', () => {
+    it('deberia retornar todos los sectores', async () => {
+      const sectores = [{ id: 1, nombre: 'Salón' }, { id: 2, nombre: 'Terraza' }];
+      mockPrisma.sector.findMany.mockResolvedValue(sectores);
+      const result = await service.findAll();
+      expect(result).toEqual(sectores);
+    });
   });
 
-  describe('login', () => {
-    it('deberia retornar tokens si las credenciales son correctas', async () => {
-      const user = { id: 1, email: 'test@test.com', password: await bcrypt.hash('123456', 10), role: 'ADMIN' };
-      mockUsersService.findByEmail.mockResolvedValue(user);
-
-      const result = await service.login({ email: 'test@test.com', password: '123456' });
-
-      expect(result).toHaveProperty('access_token');
-      expect(result).toHaveProperty('refresh_token');
+  // ─── findById ────────────────────────────────────────────
+  describe('findById', () => {
+    it('deberia retornar un sector existente', async () => {
+      const sector = { id: 1, nombre: 'Salón', mesas: [] };
+      mockPrisma.sector.findUnique.mockResolvedValue(sector);
+      const result = await service.findById(1);
+      expect(result).toEqual(sector);
     });
 
-    it('deberia lanzar UnauthorizedException si el usuario no existe', async () => {
-      mockUsersService.findByEmail.mockResolvedValue(null);
+    it('deberia lanzar NotFoundException si no existe', async () => {
+      mockPrisma.sector.findUnique.mockResolvedValue(null);
+      await expect(service.findById(999)).rejects.toThrow(NotFoundException);
+    });
+  });
 
-      await expect(service.login({ email: 'noexiste@test.com', password: '123456' }))
-        .rejects.toThrow(UnauthorizedException);
+  // ─── create ──────────────────────────────────────────────
+  describe('create', () => {
+    it('deberia crear un sector correctamente', async () => {
+      const dto = { nombre: 'Salón principal' };
+      const sector = { id: 1, ...dto };
+      mockPrisma.sector.create.mockResolvedValue(sector);
+      const result = await service.create(dto);
+      expect(result).toHaveProperty('id', 1);
+      expect(mockPrisma.sector.create).toHaveBeenCalled();
+    });
+  });
+
+  // ─── update ──────────────────────────────────────────────
+  describe('update', () => {
+    it('deberia actualizar un sector existente', async () => {
+      mockPrisma.sector.findUnique.mockResolvedValue({ id: 1, nombre: 'Salón' });
+      mockPrisma.sector.update.mockResolvedValue({ id: 1, nombre: 'Salón VIP' });
+      const result = await service.update(1, { nombre: 'Salón VIP' });
+      expect(result).toHaveProperty('nombre', 'Salón VIP');
     });
 
-    it('deberia lanzar UnauthorizedException si la password es incorrecta', async () => {
-      const user = { id: 1, email: 'test@test.com', password: await bcrypt.hash('correcta', 10), role: 'ADMIN' };
-      mockUsersService.findByEmail.mockResolvedValue(user);
+    it('deberia lanzar NotFoundException si no existe', async () => {
+      mockPrisma.sector.findUnique.mockResolvedValue(null);
+      await expect(service.update(999, { nombre: 'X' })).rejects.toThrow(NotFoundException);
+    });
+  });
 
-      await expect(service.login({ email: 'test@test.com', password: 'incorrecta' }))
-        .rejects.toThrow(UnauthorizedException);
+  // ─── delete ──────────────────────────────────────────────
+  describe('delete', () => {
+    it('deberia eliminar un sector existente', async () => {
+      mockPrisma.sector.findUnique.mockResolvedValue({ id: 1 });
+      mockPrisma.sector.delete.mockResolvedValue({ id: 1 });
+      await expect(service.delete(1)).resolves.not.toThrow();
+    });
+
+    it('deberia lanzar NotFoundException si no existe', async () => {
+      mockPrisma.sector.findUnique.mockResolvedValue(null);
+      await expect(service.delete(999)).rejects.toThrow(NotFoundException);
     });
   });
 });

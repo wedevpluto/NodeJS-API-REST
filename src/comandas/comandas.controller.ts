@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpSta
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ComandasService } from './comandas.service';
 import { CreateComandaDto } from './dto/create-comanda.dto';
+import { CobroDto } from './dto/cobro.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -20,7 +21,7 @@ export class ComandasController {
     status: 200,
     description: 'Listado completo de comandas',
     schema: {
-      example: [{ id: 1, estado: 'ABIERTA', total: 0, mesa: { numero: 1 }, mozo: { name: 'Juan' }, pedidos: [] }],
+      example: [{ id: 1, estado: 'ABIERTA', total: 0, mesa: { numero: 1 }, mozo: { name: 'Juan' }, pedidos: [], cobro: null }],
     },
   })
   @ApiResponse({ status: 401, description: 'No autenticado' })
@@ -62,14 +63,20 @@ export class ComandasController {
 
   @Roles('ADMIN', 'CAJERO')
   @Patch(':id/cerrar')
-  @ApiOperation({ summary: 'Cerrar comanda y calcular total' })
+  @ApiOperation({ summary: 'Cerrar comanda, registrar cobro y liberar mesa' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiResponse({ status: 200, description: 'Comanda cerrada y mesa liberada exitosamente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Comanda cerrada, cobro registrado y mesa liberada',
+    schema: {
+      example: { id: 1, estado: 'CERRADA', total: 4500, vuelto: 500, cobro: { metodoPago: 'EFECTIVO', montoAbonado: 5000 } },
+    },
+  })
   @ApiResponse({ status: 400, description: 'La comanda ya está cerrada o cancelada' })
   @ApiResponse({ status: 404, description: 'Comanda no encontrada' })
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
-  cerrar(@Param('id') id: string) {
-    return this.comandasService.cerrar(Number(id));
+  cerrar(@Param('id') id: string, @Body() cobroDto: CobroDto) {
+    return this.comandasService.cerrar(Number(id), cobroDto);
   }
 
   @Roles('ADMIN', 'MOZO')

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Query, Ht
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { PedidosService } from './pedidos.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
+import { UpdatePedidoDto } from './dto/update-pedido.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -50,6 +51,18 @@ export class PedidosController {
   @ApiResponse({ status: 403, description: 'Acceso denegado' })
   create(@Body() dto: CreatePedidoDto) {
     return this.pedidosService.create(dto);
+  }
+
+  @Roles('ADMIN', 'MOZO')
+  @Patch(':id')
+  @ApiOperation({ summary: 'Modificar cantidad o nota de un pedido (solo PENDIENTE o EN_PREPARACION)' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiResponse({ status: 200, description: 'Pedido modificado exitosamente' })
+  @ApiResponse({ status: 400, description: 'Comanda cerrada o pedido en estado no modificable' })
+  @ApiResponse({ status: 404, description: 'Pedido no encontrado' })
+  @ApiResponse({ status: 403, description: 'Acceso denegado' })
+  update(@Param('id') id: string, @Body() dto: UpdatePedidoDto) {
+    return this.pedidosService.update(Number(id), dto);
   }
 
   @Roles('ADMIN', 'MOZO')

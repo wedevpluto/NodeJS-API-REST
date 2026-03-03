@@ -11,20 +11,12 @@ import { ArticulosModule } from './articulos/articulos.module';
 import { ComandasModule } from './comandas/comandas.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { ArqueosModule } from './arqueos/arqueos.module';
-
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
-    ArqueosModule,
-    ComandasModule,
-    ArticulosModule,
-    MesasModule,
-    SectoresModule,
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
     PrismaModule,
     UsersModule,
     AuthModule,
@@ -34,6 +26,7 @@ import { ArqueosModule } from './arqueos/arqueos.module';
     ComandasModule,
     PedidosModule,
     ArqueosModule,
+    EventsModule,
   ],
   providers: [
     {

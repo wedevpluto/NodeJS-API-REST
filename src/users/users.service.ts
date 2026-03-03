@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from '../auth/dto/update.user.dto';
@@ -11,7 +11,6 @@ export class UsersService {
   async findAll(pagination: PaginationDto) {
     const { page = 1, limit = 10 } = pagination;
     const skip = (page - 1) * limit;
-
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         skip,
@@ -21,14 +20,13 @@ export class UsersService {
       }),
       this.prisma.user.count(),
     ]);
-
     return {
       data,
       meta: {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages:  Math.ceil(total / limit),
         hasNextPage: page < Math.ceil(total / limit),
         hasPrevPage: page > 1,
       },
@@ -46,6 +44,9 @@ export class UsersService {
   }
 
   async create(data: CreateUserDto) {
+    // Verificar si el email ya está registrado
+    const existe = await this.prisma.user.findUnique({ where: { email: data.email } });
+    if (existe) throw new ConflictException(`El email ${data.email} ya está registrado`);
     return this.prisma.user.create({ data });
   }
 

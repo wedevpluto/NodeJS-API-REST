@@ -6,6 +6,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── ENUMS ───────────────────────────────────────────────
+
 enum Role {
   ADMIN
   MOZO
@@ -20,6 +22,7 @@ enum EstadoMesa {
 
 enum EstadoComanda {
   ABIERTA
+  LISTA_PARA_COBRAR
   CERRADA
   CANCELADA
 }
@@ -40,6 +43,20 @@ enum CategoriaArticulo {
   OTRO
 }
 
+enum MetodoPago {
+  EFECTIVO
+  DEBITO
+  CREDITO
+  TRANSFERENCIA
+  QR
+  PEDIDOS_YA_CTA_CTE
+  PEDIDOS_YA_EFECTIVO
+  RAPPI_CTA_CTE
+  RAPPI_EFECTIVO
+}
+
+// ─── MODELOS ─────────────────────────────────────────────
+
 model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
@@ -52,28 +69,28 @@ model User {
 }
 
 model Sector {
-  id     Int     @id @default(autoincrement())
-  nombre String  @unique
+  id     Int    @id @default(autoincrement())
+  nombre String @unique
   mesas  Mesa[]
 }
 
 model Mesa {
-  id       Int        @id @default(autoincrement())
-  numero   Int        @unique
+  id        Int        @id @default(autoincrement())
+  numero    Int        @unique
   capacidad Int
-  estado   EstadoMesa @default(LIBRE)
-  sectorId Int
-  sector   Sector     @relation(fields: [sectorId], references: [id])
-  comandas Comanda[]
+  estado    EstadoMesa @default(LIBRE)
+  sectorId  Int
+  sector    Sector     @relation(fields: [sectorId], references: [id])
+  comandas  Comanda[]
 }
 
 model Articulo {
-  id        Int               @id @default(autoincrement())
-  nombre    String
-  precio    Float
-  categoria CategoriaArticulo
-  disponible Boolean          @default(true)
-  pedidos   Pedido[]
+  id         Int               @id @default(autoincrement())
+  nombre     String
+  precio     Float
+  categoria  CategoriaArticulo
+  disponible Boolean           @default(true)
+  pedidos    Pedido[]
 }
 
 model Comanda {
@@ -87,6 +104,7 @@ model Comanda {
   mesa      Mesa          @relation(fields: [mesaId], references: [id])
   mozo      User          @relation("MozoComandas", fields: [mozoId], references: [id])
   pedidos   Pedido[]
+  cobro     Cobro?
 }
 
 model Pedido {
@@ -102,13 +120,46 @@ model Pedido {
   articulo   Articulo     @relation(fields: [articuloId], references: [id])
 }
 
-model Arqueo {
-  id          Int      @id @default(autoincrement())
-  cajeroId    Int
-  totalEfectivo Float
-  totalTarjeta  Float
-  totalGeneral  Float
-  fecha       DateTime @default(now())
+// Registro del pago al cerrar una comanda
+model Cobro {
+  id           Int        @id @default(autoincrement())
+  comandaId    Int        @unique
+  metodoPago   MetodoPago
+  montoAbonado Float
+  vuelto       Float      @default(0)
   observaciones String?
-  cajero      User     @relation(fields: [cajeroId], references: [id])
+  fecha        DateTime   @default(now())
+  comanda      Comanda    @relation(fields: [comandaId], references: [id])
+}
+
+model Arqueo {
+  id            Int      @id @default(autoincrement())
+  cajeroId      Int
+  fecha         DateTime @default(now())
+
+  // Conteo de billetes en efectivo
+  billetes1000  Int      @default(0)
+  billetes2000  Int      @default(0)
+  billetes5000  Int      @default(0)
+  billetes10000 Int      @default(0)
+  billetes20000 Int      @default(0)
+  billetes50000 Int      @default(0)
+
+  // Totales por método de pago
+  totalEfectivo          Float @default(0)
+  totalDebito            Float @default(0)
+  totalCredito           Float @default(0)
+  totalTransferencia     Float @default(0)
+  totalQr                Float @default(0)
+  totalPedidosYaCtaCte   Float @default(0)
+  totalPedidosYaEfectivo Float @default(0)
+  totalRappiCtaCte       Float @default(0)
+  totalRappiEfectivo     Float @default(0)
+
+  // Cierre
+  totalGeneral  Float
+  diferencia    Float    @default(0)
+  observaciones String?
+
+  cajero        User     @relation(fields: [cajeroId], references: [id])
 }
