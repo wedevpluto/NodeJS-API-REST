@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Schema BD — Sistema Gastronómico</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: auto;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #fff;
+    padding: 24px 32px 0;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+    color: #4a5568;
+    padding: 4px 32px 16px;
+    letter-spacing: 0.1em;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    width: 1300px;
+    height: 860px;
+    margin: 0 auto;
+  }
+
+  svg.lines {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .table {
+    position: absolute;
+    z-index: 2;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    min-width: 200px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .table:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7);
+    z-index: 10;
+  }
+
+  .table-header {
+    padding: 10px 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .table-header .icon { font-size: 1rem; }
+
+  .table-body {
+    background: #12121a;
+  }
+
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 14px;
+    font-size: 0.68rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    gap: 12px;
+  }
+
+  .field:hover { background: rgba(255,255,255,0.03); }
+
+  .field-name { color: #cbd5e0; }
+  .field-name.pk { color: #ffd700; font-weight: 700; }
+  .field-name.fk { color: #90cdf4; }
+
+  .field-type { color: #4a5568; font-size: 0.62rem; }
+
+  .badge {
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .badge-pk { background: rgba(255,215,0,0.15); color: #ffd700; }
+  .badge-fk { background: rgba(144,205,244,0.15); color: #90cdf4; }
+
+  /* Table colors */
+  .t-user .table-header    { background: #1a1a2e; color: #a78bfa; border-bottom: 2px solid #a78bfa; }
+  .t-sector .table-header  { background: #1a2e1a; color: #68d391; border-bottom: 2px solid #68d391; }
+  .t-mesa .table-header    { background: #2e1a1a; color: #fc8181; border-bottom: 2px solid #fc8181; }
+  .t-articulo .table-header{ background: #2e2a1a; color: #f6ad55; border-bottom: 2px solid #f6ad55; }
+  .t-comanda .table-header  { background: #1a2a2e; color: #63b3ed; border-bottom: 2px solid #63b3ed; }
+  .t-pedido .table-header  { background: #2e1a2e; color: #f687b3; border-bottom: 2px solid #f687b3; }
+  .t-cobro .table-header   { background: #1a2e2a; color: #4fd1c5; border-bottom: 2px solid #4fd1c5; }
+  .t-arqueo .table-header  { background: #2a2e1a; color: #d6e36b; border-bottom: 2px solid #d6e36b; }
+
+  .legend {
+    display: flex;
+    gap: 24px;
+    padding: 12px 32px 24px;
+    font-size: 0.65rem;
+    color: #4a5568;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-line { width: 24px; height: 2px; }
+  .leg-1n { background: #4a5568; }
+  .leg-11 { background: #4a5568; border-top: 2px dashed #4a5568; height: 0; border-bottom: none; }
+
+  .rel-label {
+    position: absolute;
+    font-size: 0.6rem;
+    color: #4a5568;
+    background: #0a0a0f;
+    padding: 1px 4px;
+    border-radius: 3px;
+    z-index: 5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚡ Schema — Sistema Gastronómico</h1>
+<p class="subtitle">NestJS · Prisma · PostgreSQL — 8 tablas · Relaciones de negocio</p>
+
+<div class="canvas-wrap" id="canvas">
+
+  <!-- SVG lines layer -->
+  <svg class="lines" id="lines"></svg>
+
+  <!-- USER -->
+  <div class="table t-user" id="tUser" style="left:50px; top:50px; width:220px">
+    <div class="table-header"><span class="icon">👤</span> User</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name">email</span><span class="field-type">String UNIQUE</span></div>
+      <div class="field"><span class="field-name">password</span><span class="field-type">String</span></div>
+      <div class="field"><span class="field-name">name</span><span class="field-type">String</span></div>
+      <div class="field"><span class="field-name">role</span><span class="field-type">ADMIN|MOZO|CAJERO</span></div>
+      <div class="field"><span class="field-name">createdAt</span><span class="field-type">DateTime</span></div>
+    </div>
+  </div>
+
+  <!-- SECTOR -->
+  <div class="table t-sector" id="tSector" style="left:50px; top:310px; width:200px">
+    <div class="table-header"><span class="icon">🏛️</span> Sector</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name">nombre</span><span class="field-type">String UNIQUE</span></div>
+    </div>
+  </div>
+
+  <!-- MESA -->
+  <div class="table t-mesa" id="tMesa" style="left:50px; top:480px; width:215px">
+    <div class="table-header"><span class="icon">🪑</span> Mesa</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name">numero</span><span class="field-type">Int UNIQUE</span></div>
+      <div class="field"><span class="field-name">capacidad</span><span class="field-type">Int</span></div>
+      <div class="field"><span class="field-name">estado</span><span class="field-type">LIBRE|OCUPADA|RESERVADA</span></div>
+      <div class="field"><span class="field-name fk">sectorId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+    </div>
+  </div>
+
+  <!-- ARTICULO -->
+  <div class="table t-articulo" id="tArticulo" style="left:1030px; top:480px; width:220px">
+    <div class="table-header"><span class="icon">🍽️</span> Articulo</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name">nombre</span><span class="field-type">String</span></div>
+      <div class="field"><span class="field-name">precio</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">categoria</span><span class="field-type">CategoriaArticulo</span></div>
+      <div class="field"><span class="field-name">disponible</span><span class="field-type">Boolean</span></div>
+    </div>
+  </div>
+
+  <!-- COMANDA -->
+  <div class="table t-comanda" id="tComanda" style="left:430px; top:300px; width:230px">
+    <div class="table-header"><span class="icon">📋</span> Comanda</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name fk">mesaId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name fk">mozoId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name">estado</span><span class="field-type">EstadoComanda</span></div>
+      <div class="field"><span class="field-name">total</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">createdAt</span><span class="field-type">DateTime</span></div>
+      <div class="field"><span class="field-name">closedAt</span><span class="field-type">DateTime?</span></div>
+    </div>
+  </div>
+
+  <!-- PEDIDO -->
+  <div class="table t-pedido" id="tPedido" style="left:430px; top:580px; width:230px">
+    <div class="table-header"><span class="icon">🧾</span> Pedido</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name fk">comandaId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name fk">articuloId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name">cantidad</span><span class="field-type">Int</span></div>
+      <div class="field"><span class="field-name">precio</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">estado</span><span class="field-type">EstadoPedido</span></div>
+      <div class="field"><span class="field-name">nota</span><span class="field-type">String?</span></div>
+      <div class="field"><span class="field-name">createdAt</span><span class="field-type">DateTime</span></div>
+    </div>
+  </div>
+
+  <!-- COBRO -->
+  <div class="table t-cobro" id="tCobro" style="left:730px; top:300px; width:240px">
+    <div class="table-header"><span class="icon">💳</span> Cobro</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name fk">comandaId</span><span class="field-type">Int UNIQUE <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name">metodoPago</span><span class="field-type">MetodoPago</span></div>
+      <div class="field"><span class="field-name">montoAbonado</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">vuelto</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">observaciones</span><span class="field-type">String?</span></div>
+      <div class="field"><span class="field-name">fecha</span><span class="field-type">DateTime</span></div>
+    </div>
+  </div>
+
+  <!-- ARQUEO -->
+  <div class="table t-arqueo" id="tArqueo" style="left:730px; top:50px; width:240px">
+    <div class="table-header"><span class="icon">🏦</span> Arqueo</div>
+    <div class="table-body">
+      <div class="field"><span class="field-name pk">id</span><span class="field-type">Int <span class="badge badge-pk">PK</span></span></div>
+      <div class="field"><span class="field-name fk">cajeroId</span><span class="field-type">Int <span class="badge badge-fk">FK</span></span></div>
+      <div class="field"><span class="field-name">fecha</span><span class="field-type">DateTime</span></div>
+      <div class="field"><span class="field-name">billetes...</span><span class="field-type">Int ×6</span></div>
+      <div class="field"><span class="field-name">totalEfectivo</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">totalDebito</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">total...</span><span class="field-type">Float ×7</span></div>
+      <div class="field"><span class="field-name">totalGeneral</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">diferencia</span><span class="field-type">Float</span></div>
+      <div class="field"><span class="field-name">observaciones</span><span class="field-type">String?</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-line leg-1n"></div> Relación 1:N</div>
+  <div class="legend-item"><span style="color:#ffd700; font-size:0.65rem">■</span> Primary Key (PK)</div>
+  <div class="legend-item"><span style="color:#90cdf4; font-size:0.65rem">■</span> Foreign Key (FK)</div>
+</div>
+
+<script>
+  function getCenter(el) {
+    const rect = el.getBoundingClientRect();
+    const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+    return {
+      x: rect.left - canvasRect.left + rect.width / 2,
+      y: rect.top  - canvasRect.top  + rect.height / 2,
+      top:    rect.top  - canvasRect.top,
+      bottom: rect.bottom - canvasRect.top,
+      left:   rect.left - canvasRect.left,
+      right:  rect.right - canvasRect.left,
+      midY:   rect.top  - canvasRect.top + rect.height / 2,
+      midX:   rect.left - canvasRect.left + rect.width / 2,
+    };
+  }
+
+  function drawLine(svg, x1, y1, x2, y2, color, dashed=false) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const mx = (x1 + x2) / 2;
+    const d = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+    line.setAttribute('d', d);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('opacity', '0.5');
+    if (dashed) line.setAttribute('stroke-dasharray', '5,4');
+    svg.appendChild(line);
+  }
+
+  function drawArrow(svg, x, y, dir, color) {
+    const size = 6;
+    let points;
+    if (dir === 'right') points = `${x},${y} ${x-size},${y-size/2} ${x-size},${y+size/2}`;
+    if (dir === 'left')  points = `${x},${y} ${x+size},${y-size/2} ${x+size},${y+size/2}`;
+    if (dir === 'down')  points = `${x},${y} ${x-size/2},${y-size} ${x+size/2},${y-size}`;
+    if (dir === 'up')    points = `${x},${y} ${x-size/2},${y+size} ${x+size/2},${y+size}`;
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', points);
+    poly.setAttribute('fill', color);
+    poly.setAttribute('opacity', '0.6');
+    svg.appendChild(poly);
+  }
+
+  window.addEventListener('load', () => {
+    const svg = document.getElementById('lines');
+    const tables = {
+      user:     document.getElementById('tUser'),
+      sector:   document.getElementById('tSector'),
+      mesa:     document.getElementById('tMesa'),
+      articulo: document.getElementById('tArticulo'),
+      comanda:  document.getElementById('tComanda'),
+      pedido:   document.getElementById('tPedido'),
+      cobro:    document.getElementById('tCobro'),
+      arqueo:   document.getElementById('tArqueo'),
+    };
+
+    const p = {};
+    for (const [k, v] of Object.entries(tables)) p[k] = getCenter(v);
+
+    // Colors per relationship
+    const colors = {
+      sector_mesa:    '#68d391',
+      user_comanda:   '#a78bfa',
+      user_arqueo:    '#d6e36b',
+      mesa_comanda:   '#fc8181',
+      comanda_pedido: '#63b3ed',
+      pedido_articulo:'#f6ad55',
+      comanda_cobro:  '#4fd1c5',
+    };
+
+    // Sector (1) → Mesa (N): bottom of sector to top of mesa
+    drawLine(svg, p.sector.midX, p.sector.bottom, p.mesa.midX, p.mesa.top, colors.sector_mesa);
+    drawArrow(svg, p.mesa.midX, p.mesa.top, 'down', colors.sector_mesa);
+
+    // User (1) → Comanda (N): right of user to left of comanda
+    drawLine(svg, p.user.right, p.user.midY, p.comanda.left, p.comanda.midY - 20, colors.user_comanda);
+    drawArrow(svg, p.comanda.left, p.comanda.midY - 20, 'left', colors.user_comanda);
+
+    // User (1) → Arqueo (N): right of user to left of arqueo
+    drawLine(svg, p.user.right, p.user.midY - 20, p.arqueo.left, p.arqueo.midY, colors.user_arqueo);
+    drawArrow(svg, p.arqueo.left, p.arqueo.midY, 'left', colors.user_arqueo);
+
+    // Mesa (1) → Comanda (N): right of mesa to bottom-left of comanda
+    drawLine(svg, p.mesa.right, p.mesa.midY, p.comanda.left, p.comanda.midY + 20, colors.mesa_comanda);
+    drawArrow(svg, p.comanda.left, p.comanda.midY + 20, 'left', colors.mesa_comanda);
+
+    // Comanda (1) → Pedido (N): bottom of comanda to top of pedido
+    drawLine(svg, p.comanda.midX, p.comanda.bottom, p.pedido.midX, p.pedido.top, colors.comanda_pedido);
+    drawArrow(svg, p.pedido.midX, p.pedido.top, 'down', colors.comanda_pedido);
+
+    // Pedido (N) → Articulo (1): right of pedido to left of articulo
+    drawLine(svg, p.pedido.right, p.pedido.midY, p.articulo.left, p.articulo.midY, colors.pedido_articulo);
+    drawArrow(svg, p.articulo.left, p.articulo.midY, 'left', colors.pedido_articulo);
+
+    // Comanda (1) → Cobro (1): right of comanda to left of cobro (dashed = 1:1)
+    drawLine(svg, p.comanda.right, p.comanda.midY, p.cobro.left, p.cobro.midY, colors.comanda_cobro, true);
+    drawArrow(svg, p.cobro.left, p.cobro.midY, 'left', colors.comanda_cobro);
+  });
+</script>
+</body>
+</html>

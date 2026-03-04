@@ -16,26 +16,12 @@ export class PedidosService {
   // Máquina de estados robusta
   // ─────────────────────────────────────────────
   private readonly transicionesValidas: Record<EstadoPedido, EstadoPedido[]> = {
-    [EstadoPedido.PENDIENTE]: [
-      EstadoPedido.EN_PREPARACION,
-      EstadoPedido.CANCELADO,
-    ],
-
-    [EstadoPedido.EN_PREPARACION]: [
-      EstadoPedido.LISTO,
-      EstadoPedido.CANCELADO,
-    ],
-
-    [EstadoPedido.LISTO]: [
-      EstadoPedido.ENTREGADO,
-    ],
-
-    [EstadoPedido.ENTREGADO]: [],
-
-    [EstadoPedido.CANCELADO]: [],
+    [EstadoPedido.PENDIENTE]:       [EstadoPedido.EN_PREPARACION, EstadoPedido.CANCELADO],
+    [EstadoPedido.EN_PREPARACION]:  [EstadoPedido.LISTO,          EstadoPedido.CANCELADO],
+    [EstadoPedido.LISTO]:           [EstadoPedido.ENTREGADO],
+    [EstadoPedido.ENTREGADO]:       [],
+    [EstadoPedido.CANCELADO]:       [],
   };
-
-  // ─────────────────────────────────────────────
 
   async findByComanda(comandaId: number) {
     return this.prisma.pedido.findMany({
@@ -50,105 +36,64 @@ export class PedidosService {
       where: { id },
       include: { articulo: true, comanda: true },
     });
-
-    if (!pedido) {
-      throw new NotFoundException(`Pedido ${id} no encontrado`);
-    }
-
+    if (!pedido) throw new NotFoundException(`Pedido ${id} no encontrado`);
     return pedido;
   }
 
-  // ─────────────────────────────────────────────
-
   async create(dto: CreatePedidoDto) {
-    const comanda = await this.prisma.comanda.findUnique({
-      where: { id: dto.comandaId },
-    });
+    const comanda = await this.prisma.comanda.findUnique({ where: { id: dto.comandaId } });
+    if (!comanda) throw new NotFoundException(`Comanda ${dto.comandaId} no encontrada`);
+    if (comanda.estado !== EstadoComanda.ABIERTA)
+      throw new BadRequestException('No se pueden agregar pedidos a una comanda que no esté ABIERTA');
 
-    if (!comanda) {
-      throw new NotFoundException(`Comanda ${dto.comandaId} no encontrada`);
-    }
-
-    if (comanda.estado !== EstadoComanda.ABIERTA) {
-      throw new BadRequestException(
-        'No se pueden agregar pedidos a una comanda que no esté ABIERTA',
-      );
-    }
-
-    const articulo = await this.prisma.articulo.findUnique({
-      where: { id: dto.articuloId },
-    });
-
-    if (!articulo) {
-      throw new NotFoundException(`Artículo ${dto.articuloId} no encontrado`);
-    }
-
-    if (!articulo.disponible) {
-      throw new BadRequestException(
-        `El artículo "${articulo.nombre}" no está disponible`,
-      );
-    }
+    const articulo = await this.prisma.articulo.findUnique({ where: { id: dto.articuloId } });
+    if (!articulo) throw new NotFoundException(`Artículo ${dto.articuloId} no encontrado`);
+    if (!articulo.disponible)
+      throw new BadRequestException(`El artículo "${articulo.nombre}" no está disponible`);
 
     const pedido = await this.prisma.pedido.create({
       data: {
-        comandaId: dto.comandaId,
+        comandaId:  dto.comandaId,
         articuloId: dto.articuloId,
-        cantidad: dto.cantidad,
-        precio: articulo.precio,
-        nota: dto.nota,
-        estado: EstadoPedido.PENDIENTE,
+        cantidad:   dto.cantidad,
+        precio:     articulo.precio,
+        nota:       dto.nota,
+        estado:     EstadoPedido.PENDIENTE,
       },
       include: { articulo: true },
     });
 
     this.events.emitNuevoPedido(pedido);
-
     return pedido;
   }
-
-  // ─────────────────────────────────────────────
 
   async update(id: number, dto: UpdatePedidoDto) {
     const pedido = await this.findById(id);
 
-    if (pedido.comanda.estado !== EstadoComanda.ABIERTA) {
-      throw new BadRequestException(
-        'No se puede modificar un pedido de una comanda no ABIERTA',
-      );
-    }
+    if (pedido.comanda.estado !== EstadoComanda.ABIERTA)
+      throw new BadRequestException('No se puede modificar un pedido de una comanda no ABIERTA');
 
-    if (
-      ![EstadoPedido.PENDIENTE, EstadoPedido.EN_PREPARACION].includes(
-        pedido.estado,
-      )
-    ) {
-      throw new BadRequestException(
-        `No se puede modificar un pedido en estado ${pedido.estado}`,
-      );
-    }
+    // ← único cambio: EstadoPedido[] para que TypeScript entienda la comparación
+    const estadosModificables: EstadoPedido[] = [EstadoPedido.PENDIENTE, EstadoPedido.EN_PREPARACION];
+    if (!estadosModificables.includes(pedido.estado))
+      throw new BadRequestException(`No se puede modificar un pedido en estado ${pedido.estado}`);
 
     return this.prisma.pedido.update({
       where: { id },
       data: {
         ...(dto.cantidad !== undefined && { cantidad: dto.cantidad }),
-        ...(dto.nota !== undefined && { nota: dto.nota }),
+        ...(dto.nota     !== undefined && { nota:     dto.nota     }),
       },
       include: { articulo: true },
     });
   }
 
-  // ─────────────────────────────────────────────
-
   async cambiarEstado(id: number, nuevoEstado: EstadoPedido) {
     const pedido = await this.findById(id);
 
     const estadosPermitidos = this.transicionesValidas[pedido.estado];
-
-    if (!estadosPermitidos.includes(nuevoEstado)) {
-      throw new BadRequestException(
-        `Transición inválida: ${pedido.estado} → ${nuevoEstado}`,
-      );
-    }
+    if (!estadosPermitidos.includes(nuevoEstado))
+      throw new BadRequestException(`Transición inválida: ${pedido.estado} → ${nuevoEstado}`);
 
     const actualizado = await this.prisma.pedido.update({
       where: { id },
@@ -157,21 +102,13 @@ export class PedidosService {
     });
 
     this.events.emitEstadoPedido(actualizado);
-
     return actualizado;
   }
 
-  // ─────────────────────────────────────────────
-
   async delete(id: number) {
     const pedido = await this.findById(id);
-
-    if (pedido.estado !== EstadoPedido.PENDIENTE) {
-      throw new BadRequestException(
-        'Solo se pueden eliminar pedidos en estado PENDIENTE',
-      );
-    }
-
+    if (pedido.estado !== EstadoPedido.PENDIENTE)
+      throw new BadRequestException('Solo se pueden eliminar pedidos en estado PENDIENTE');
     return this.prisma.pedido.delete({ where: { id } });
   }
 }

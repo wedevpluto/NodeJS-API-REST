@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "EstadoComanda" ADD VALUE 'LISTA_PARA_COBRAR';

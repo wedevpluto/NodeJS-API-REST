@@ -124,7 +124,7 @@ export class ComandasService {
 
     const pedidosInvalidos = comanda.pedidos.filter(
       (p) =>
-        ![EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO].includes(p.estado),
+        !([ EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO ] as EstadoPedido[]).includes(p.estado),
     );
 
     if (pedidosInvalidos.length > 0) {

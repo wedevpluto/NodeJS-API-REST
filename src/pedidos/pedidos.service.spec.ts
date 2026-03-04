@@ -34,7 +34,7 @@ describe('PedidosService', () => {
       providers: [
         PedidosService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: EventsGateway, useValue: mockEventsGateway }, // 👈 ESTA LÍNEA ES LA CLAVE
+        { provide: EventsGateway, useValue: mockEventsGateway },
       ],
     }).compile();
 
@@ -143,19 +143,30 @@ describe('PedidosService', () => {
 
   // ─── cambiarEstado ───────────────────────────────────────
   describe('cambiarEstado', () => {
-    it('deberia cambiar el estado de un pedido', async () => {
-      mockPrisma.pedido.findUnique.mockResolvedValue({ id: 1, estado: EstadoPedido.PENDIENTE });
-      mockPrisma.pedido.update.mockResolvedValue({ id: 1, estado: EstadoPedido.EN_PREPARACION });
-
-      const result = await service.cambiarEstado(1, EstadoPedido.EN_PREPARACION);
-      expect(result).toHaveProperty('estado', EstadoPedido.EN_PREPARACION);
+  it('deberia cambiar el estado con una transicion valida', async () => {
+    mockPrisma.pedido.findUnique.mockResolvedValue({
+      id: 1, estado: EstadoPedido.PENDIENTE, comanda: {}
     });
+    mockPrisma.pedido.update.mockResolvedValue({ id: 1, estado: EstadoPedido.EN_PREPARACION });
 
-    it('deberia lanzar NotFoundException si el pedido no existe', async () => {
-      mockPrisma.pedido.findUnique.mockResolvedValue(null);
-      await expect(service.cambiarEstado(999, EstadoPedido.LISTO)).rejects.toThrow(NotFoundException);
-    });
+    const result = await service.cambiarEstado(1, EstadoPedido.EN_PREPARACION);
+    expect(result).toHaveProperty('estado', EstadoPedido.EN_PREPARACION);
   });
+
+  it('deberia lanzar BadRequestException con transicion invalida', async () => {
+    mockPrisma.pedido.findUnique.mockResolvedValue({
+      id: 1, estado: EstadoPedido.PENDIENTE, comanda: {}
+    });
+    await expect(service.cambiarEstado(1, EstadoPedido.ENTREGADO))
+      .rejects.toThrow(BadRequestException);
+  });
+
+  it('deberia lanzar NotFoundException si el pedido no existe', async () => {
+    mockPrisma.pedido.findUnique.mockResolvedValue(null);
+    await expect(service.cambiarEstado(999, EstadoPedido.LISTO))
+      .rejects.toThrow(NotFoundException);
+  });
+});
 
   // ─── delete ──────────────────────────────────────────────
   describe('delete', () => {
