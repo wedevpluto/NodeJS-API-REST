@@ -12,6 +12,7 @@ import { ComandasModule } from './comandas/comandas.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { ArqueosModule } from './arqueos/arqueos.module';
 import { EventsModule } from './events/events.module';
+import { ReportesModule } from './reportes/reportes.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EventsModule } from './events/events.module';
     PedidosModule,
     ArqueosModule,
     EventsModule,
+    ReportesModule,
   ],
   providers: [
     {

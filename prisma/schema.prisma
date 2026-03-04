@@ -94,17 +94,18 @@ model Articulo {
 }
 
 model Comanda {
-  id        Int           @id @default(autoincrement())
-  mesaId    Int
-  mozoId    Int
-  estado    EstadoComanda @default(ABIERTA)
-  total     Float         @default(0)
-  createdAt DateTime      @default(now())
-  closedAt  DateTime?
-  mesa      Mesa          @relation(fields: [mesaId], references: [id])
-  mozo      User          @relation("MozoComandas", fields: [mozoId], references: [id])
-  pedidos   Pedido[]
-  cobro     Cobro?
+  id         Int           @id @default(autoincrement())
+  mesaId     Int
+  mozoId     Int
+  estado     EstadoComanda @default(ABIERTA)
+  total      Float         @default(0)
+  comensales Int           @default(1)
+  createdAt  DateTime      @default(now())
+  closedAt   DateTime?
+  mesa       Mesa          @relation(fields: [mesaId], references: [id])
+  mozo       User          @relation("MozoComandas", fields: [mozoId], references: [id])
+  pedidos    Pedido[]
+  cobro      Cobro?
 }
 
 model Pedido {
@@ -163,3 +164,4 @@ model Arqueo {
 
   cajero        User     @relation(fields: [cajeroId], references: [id])
 }
+

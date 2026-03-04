@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ArqueosController } from './arqueos.controller';
-import { ArqueosService } from './arqueos.service';
+import { ArqueosService } from './application/arqueos.service';
 
 describe('ArqueosController', () => {
   let controller: ArqueosController;
 
   const mockArqueosService = {
-    findAll:    jest.fn().mockResolvedValue([]),
+    findAll: jest.fn().mockResolvedValue([]),
     findUltimo: jest.fn().mockResolvedValue({ id: 1 }),
-    findById:   jest.fn().mockResolvedValue({ id: 1 }),
-    create:     jest.fn().mockResolvedValue({ id: 1 }),
+    findById: jest.fn().mockResolvedValue({ id: 1 }),
+    create: jest.fn().mockResolvedValue({ id: 1 }),
   };
 
   beforeEach(async () => {

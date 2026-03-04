@@ -7,9 +7,14 @@ import { EstadoMesa } from '@prisma/client';
 export class MesasService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(sectorId?: number, estado?: EstadoMesa) {
     return this.prisma.mesa.findMany({
+      where: {
+        ...(sectorId && { sectorId }),
+        ...(estado   && { estado   }),
+      },
       include: { sector: true },
+      orderBy: { numero: 'asc' },
     });
   }
 
@@ -30,9 +35,7 @@ export class MesasService {
   }
 
   async create(dto: CreateMesaDto) {
-    const existe = await this.prisma.mesa.findUnique({
-      where: { numero: dto.numero },
-    });
+    const existe = await this.prisma.mesa.findUnique({ where: { numero: dto.numero } });
     if (existe) throw new ConflictException(`La mesa ${dto.numero} ya existe`);
     return this.prisma.mesa.create({ data: dto });
   }

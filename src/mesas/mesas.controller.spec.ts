@@ -7,13 +7,13 @@ describe('MesasController', () => {
   let controller: MesasController;
 
   const mockMesasService = {
-    findAll:      jest.fn().mockResolvedValue([]),
+    findAll: jest.fn().mockResolvedValue([]),
     findByEstado: jest.fn().mockResolvedValue([]),
-    findById:     jest.fn().mockResolvedValue({ id: 1 }),
-    create:       jest.fn().mockResolvedValue({ id: 1 }),
-    update:       jest.fn().mockResolvedValue({ id: 1 }),
+    findById: jest.fn().mockResolvedValue({ id: 1 }),
+    create: jest.fn().mockResolvedValue({ id: 1 }),
+    update: jest.fn().mockResolvedValue({ id: 1 }),
     cambiarEstado: jest.fn().mockResolvedValue({ id: 1, estado: EstadoMesa.OCUPADA }),
-    delete:       jest.fn().mockResolvedValue({ id: 1 }),
+    delete: jest.fn().mockResolvedValue({ id: 1 }),
   };
 
   beforeEach(async () => {
@@ -30,12 +30,12 @@ describe('MesasController', () => {
 
   it('findAll sin estado deberia retornar todas las mesas', async () => {
     await controller.findAll();
-    expect(mockMesasService.findAll).toHaveBeenCalled();
+    expect(mockMesasService.findAll).toHaveBeenCalledWith(undefined, undefined);
   });
 
   it('findAll con estado deberia filtrar por estado', async () => {
-    await controller.findAll(EstadoMesa.LIBRE);
-    expect(mockMesasService.findByEstado).toHaveBeenCalledWith(EstadoMesa.LIBRE);
+    await controller.findAll(undefined, EstadoMesa.LIBRE);
+    expect(mockMesasService.findAll).toHaveBeenCalledWith(undefined, EstadoMesa.LIBRE);
   });
 
   it('findById deberia llamar al service con el id', async () => {

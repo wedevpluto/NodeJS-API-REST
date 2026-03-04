@@ -4,33 +4,40 @@ import { PrismaService } from '../database/prisma.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EstadoComanda, EstadoMesa, EstadoPedido, MetodoPago } from '@prisma/client';
 import { EventsGateway } from '../events/events.gateway';
+import { TicketService } from './ticket.service';
 
 describe('ComandasService', () => {
   let service: ComandasService;
 
   const mockPrisma = {
     comanda: {
-      findMany:   jest.fn(),
+      findMany: jest.fn(),
       findUnique: jest.fn(),
-      create:     jest.fn(),
-      update:     jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
-    mesa:         { findUnique: jest.fn(), update: jest.fn() },
-    cobro:        { create: jest.fn() },
+    mesa: { findUnique: jest.fn(), update: jest.fn() },
+    cobro: { create: jest.fn() },
     $transaction: jest.fn(),
   };
 
   const mockEventsGateway = {
-    emitComandaCerrada:   jest.fn(),
+    emitComandaCerrada: jest.fn(),
     emitComandaCancelada: jest.fn(),
+    emitListaParaCobrar: jest.fn(),
+  };
+
+  const mockTicketService = {
+    generarTicket: jest.fn().mockReturnValue('ticket texto'),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ComandasService,
-        { provide: PrismaService, useValue: mockPrisma        },
+        { provide: PrismaService, useValue: mockPrisma },
         { provide: EventsGateway, useValue: mockEventsGateway },
+        { provide: TicketService, useValue: mockTicketService }, // ← esta línea
       ],
     }).compile();
 
@@ -84,9 +91,15 @@ describe('ComandasService', () => {
 
     it('deberia crear una comanda y ocupar la mesa', async () => {
       mockPrisma.mesa.findUnique.mockResolvedValue({ id: 1, estado: EstadoMesa.LIBRE, numero: 1 });
-      mockPrisma.$transaction.mockResolvedValue([{ id: 1, ...dto }]);
-      const result = await service.create(dto);
+      mockPrisma.comanda.create.mockResolvedValue({ id: 1, mesaId: 1, mozoId: 1, pedidos: [] });
+      mockPrisma.mesa.update.mockResolvedValue({ id: 1, estado: EstadoMesa.OCUPADA });
+
+      const result = await service.create({ mesaId: 1, mozoId: 1 });
       expect(result).toHaveProperty('id', 1);
+      expect(mockPrisma.mesa.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { estado: EstadoMesa.OCUPADA },
+      });
     });
 
     it('deberia lanzar NotFoundException si la mesa no existe', async () => {
@@ -148,7 +161,7 @@ describe('ComandasService', () => {
         mesaId: 1,
         pedidos: [
           { precio: 1500, cantidad: 2 },
-          { precio: 500,  cantidad: 1 },
+          { precio: 500, cantidad: 1 },
         ],
       });
       mockPrisma.$transaction.mockResolvedValue([{ id: 1, estado: EstadoComanda.CERRADA, total: 3500 }]);

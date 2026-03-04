@@ -16,8 +16,9 @@ export class MesasController {
 
   @Roles('ADMIN', 'MOZO', 'CAJERO')
   @Get()
-  @ApiOperation({ summary: 'Listar mesas con estado actual (filtrable por estado)' })
-  @ApiQuery({ name: 'estado', enum: EstadoMesa, required: false })
+  @ApiOperation({ summary: 'Listar mesas con filtros opcionales por sector y estado' })
+  @ApiQuery({ name: 'sectorId', required: false, type: Number,    example: 1        })
+  @ApiQuery({ name: 'estado',   required: false, enum: EstadoMesa                   })
   @ApiResponse({
     status: 200,
     description: 'Listado de mesas',
@@ -26,9 +27,14 @@ export class MesasController {
     },
   })
   @ApiResponse({ status: 401, description: 'No autenticado' })
-  findAll(@Query('estado') estado?: EstadoMesa) {
-    if (estado) return this.mesasService.findByEstado(estado);
-    return this.mesasService.findAll();
+  findAll(
+    @Query('sectorId') sectorId?: string,
+    @Query('estado')   estado?: EstadoMesa,
+  ) {
+    return this.mesasService.findAll(
+      sectorId ? Number(sectorId) : undefined,
+      estado,
+    );
   }
 
   @Roles('ADMIN', 'MOZO', 'CAJERO')
@@ -45,9 +51,9 @@ export class MesasController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear nueva mesa' })
-  @ApiResponse({ status: 201, description: 'Mesa creada exitosamente' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos' })
-  @ApiResponse({ status: 409, description: 'El número de mesa ya existe' })
+  @ApiResponse({ status: 201, description: 'Mesa creada exitosamente'      })
+  @ApiResponse({ status: 400, description: 'Datos inválidos'               })
+  @ApiResponse({ status: 409, description: 'El número de mesa ya existe'   })
   create(@Body() dto: CreateMesaDto) {
     return this.mesasService.create(dto);
   }
@@ -57,8 +63,8 @@ export class MesasController {
   @ApiOperation({ summary: 'Actualizar datos de una mesa' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({ status: 200, description: 'Mesa actualizada exitosamente' })
-  @ApiResponse({ status: 404, description: 'Mesa no encontrada' })
-  @ApiResponse({ status: 403, description: 'Acceso denegado' })
+  @ApiResponse({ status: 404, description: 'Mesa no encontrada'            })
+  @ApiResponse({ status: 403, description: 'Acceso denegado'               })
   update(@Param('id') id: string, @Body() dto: CreateMesaDto) {
     return this.mesasService.update(Number(id), dto);
   }
@@ -67,14 +73,10 @@ export class MesasController {
   @Patch(':id/estado')
   @ApiOperation({ summary: 'Cambiar estado de una mesa' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
-  @ApiBody({
-    schema: {
-      example: { estado: 'OCUPADA' },
-    },
-  })
+  @ApiBody({ schema: { example: { estado: 'OCUPADA' } } })
   @ApiResponse({ status: 200, description: 'Estado actualizado exitosamente' })
-  @ApiResponse({ status: 404, description: 'Mesa no encontrada' })
-  @ApiResponse({ status: 403, description: 'Acceso denegado' })
+  @ApiResponse({ status: 404, description: 'Mesa no encontrada'              })
+  @ApiResponse({ status: 403, description: 'Acceso denegado'                 })
   cambiarEstado(@Param('id') id: string, @Body('estado') estado: EstadoMesa) {
     return this.mesasService.cambiarEstado(Number(id), estado);
   }
@@ -85,8 +87,8 @@ export class MesasController {
   @ApiOperation({ summary: 'Eliminar mesa' })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiResponse({ status: 204, description: 'Mesa eliminada exitosamente' })
-  @ApiResponse({ status: 404, description: 'Mesa no encontrada' })
-  @ApiResponse({ status: 403, description: 'Acceso denegado' })
+  @ApiResponse({ status: 404, description: 'Mesa no encontrada'          })
+  @ApiResponse({ status: 403, description: 'Acceso denegado'             })
   delete(@Param('id') id: string) {
     return this.mesasService.delete(Number(id));
   }

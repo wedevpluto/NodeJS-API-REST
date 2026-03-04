@@ -4,12 +4,14 @@ import { CreateComandaDto } from './dto/create-comanda.dto';
 import { CobroDto } from './dto/cobro.dto';
 import { EstadoComanda, EstadoMesa, EstadoPedido } from '@prisma/client';
 import { EventsGateway } from '../events/events.gateway';
+import { TicketService } from './ticket.service';
 
 @Injectable()
 export class ComandasService {
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
+    private ticketService: TicketService,
   ) {}
 
   // ─────────────────────────────────────────────
@@ -38,33 +40,21 @@ export class ComandasService {
         cobro: true,
       },
     });
-
-    if (!comanda) {
-      throw new NotFoundException(`Comanda ${id} no encontrada`);
-    }
-
+    if (!comanda) throw new NotFoundException(`Comanda ${id} no encontrada`);
     return comanda;
   }
 
   async findAbiertas() {
     return this.prisma.comanda.findMany({
       where: { estado: EstadoComanda.ABIERTA },
-      include: {
-        mesa: true,
-        mozo: true,
-        pedidos: true,
-      },
+      include: { mesa: true, mozo: true, pedidos: true },
     });
   }
 
   async findListasParaCobrar() {
     return this.prisma.comanda.findMany({
       where: { estado: EstadoComanda.LISTA_PARA_COBRAR },
-      include: {
-        mesa: true,
-        mozo: true,
-        pedidos: true,
-      },
+      include: { mesa: true, mozo: true, pedidos: true },
     });
   }
 
@@ -73,32 +63,54 @@ export class ComandasService {
   // ─────────────────────────────────────────────
 
   async create(dto: CreateComandaDto) {
-    const mesa = await this.prisma.mesa.findUnique({
-      where: { id: dto.mesaId },
+    const mesa = await this.prisma.mesa.findUnique({ where: { id: dto.mesaId } });
+    if (!mesa) throw new NotFoundException(`Mesa ${dto.mesaId} no encontrada`);
+    if (mesa.estado === EstadoMesa.OCUPADA)
+      throw new BadRequestException(`La mesa ${mesa.numero} ya está ocupada`);
+
+    if (dto.pedidos && dto.pedidos.length > 0) {
+      for (const p of dto.pedidos) {
+        const articulo = await this.prisma.articulo.findUnique({ where: { id: p.articuloId } });
+        if (!articulo) throw new NotFoundException(`Artículo ${p.articuloId} no encontrado`);
+        if (!articulo.disponible)
+          throw new BadRequestException(`El artículo "${articulo.nombre}" no está disponible`);
+      }
+    }
+
+    const comanda = await this.prisma.comanda.create({
+      data: {
+        mesaId:     dto.mesaId,
+        mozoId:     dto.mozoId,
+        comensales: dto.comensales ?? 1,
+        estado:     EstadoComanda.ABIERTA,
+        pedidos: dto.pedidos && dto.pedidos.length > 0 ? {
+          create: await Promise.all(dto.pedidos.map(async (p) => {
+            const articulo = await this.prisma.articulo.findUnique({ where: { id: p.articuloId } });
+            return {
+              articuloId: p.articuloId,
+              cantidad:   p.cantidad,
+              precio:     articulo!.precio,
+              nota:       p.nota,
+              estado:     EstadoPedido.PENDIENTE,
+            };
+          })),
+        } : undefined,
+      },
+      include: {
+        mesa:    { include: { sector: true } },
+        mozo:    { select: { id: true, name: true } },
+        pedidos: { include: { articulo: true } },
+      },
     });
 
-    if (!mesa) {
-      throw new NotFoundException(`Mesa ${dto.mesaId} no encontrada`);
-    }
+    await this.prisma.mesa.update({
+      where: { id: dto.mesaId },
+      data:  { estado: EstadoMesa.OCUPADA },
+    });
 
-    if (mesa.estado === EstadoMesa.OCUPADA) {
-      throw new BadRequestException(
-        `La mesa ${mesa.numero} ya está ocupada`,
-      );
+    if (comanda.pedidos.length > 0) {
+      comanda.pedidos.forEach(p => this.events.emitNuevoPedido(p));
     }
-
-    const [comanda] = await this.prisma.$transaction([
-      this.prisma.comanda.create({
-        data: {
-          ...dto,
-          estado: EstadoComanda.ABIERTA,
-        },
-      }),
-      this.prisma.mesa.update({
-        where: { id: dto.mesaId },
-        data: { estado: EstadoMesa.OCUPADA },
-      }),
-    ]);
 
     return comanda;
   }
@@ -110,33 +122,31 @@ export class ComandasService {
   async marcarListaParaCobrar(id: number) {
     const comanda = await this.findById(id);
 
-    if (comanda.estado !== EstadoComanda.ABIERTA) {
-      throw new BadRequestException(
-        'Solo se puede pedir cuenta desde una comanda ABIERTA',
-      );
-    }
+    if (comanda.estado !== EstadoComanda.ABIERTA)
+      throw new BadRequestException('Solo se puede pedir cuenta desde una comanda ABIERTA');
 
-    if (comanda.pedidos.length === 0) {
-      throw new BadRequestException(
-        'No se puede pedir cuenta sin pedidos',
-      );
-    }
+    if (comanda.pedidos.length === 0)
+      throw new BadRequestException('No se puede pedir cuenta sin pedidos');
 
     const pedidosInvalidos = comanda.pedidos.filter(
-      (p) =>
-        !([ EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO ] as EstadoPedido[]).includes(p.estado),
+      (p) => !([EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO] as EstadoPedido[]).includes(p.estado),
     );
 
-    if (pedidosInvalidos.length > 0) {
-      throw new BadRequestException(
-        'Existen pedidos pendientes o en preparación',
-      );
-    }
+    if (pedidosInvalidos.length > 0)
+      throw new BadRequestException('Existen pedidos pendientes o en preparación');
 
-    return this.prisma.comanda.update({
+    const comandaActualizada = await this.prisma.comanda.update({
       where: { id },
-      data: { estado: EstadoComanda.LISTA_PARA_COBRAR },
+      data:  { estado: EstadoComanda.LISTA_PARA_COBRAR },
+      include: {
+        mesa:    { include: { sector: true } },
+        mozo:    { select: { id: true, name: true } },
+        pedidos: { include: { articulo: true } },
+      },
     });
+
+    this.events.emitListaParaCobrar(comandaActualizada);
+    return comandaActualizada;
   }
 
   // ─────────────────────────────────────────────
@@ -146,43 +156,30 @@ export class ComandasService {
   async cerrar(id: number, cobroDto: CobroDto) {
     const comanda = await this.findById(id);
 
-    if (comanda.estado !== EstadoComanda.LISTA_PARA_COBRAR) {
-      throw new BadRequestException(
-        'La comanda no está lista para cobrar',
-      );
-    }
+    if (comanda.estado !== EstadoComanda.LISTA_PARA_COBRAR)
+      throw new BadRequestException('La comanda no está lista para cobrar');
 
-    const total = comanda.pedidos.reduce(
-      (sum, p) => sum + p.precio * p.cantidad,
-      0,
-    );
+    const total = comanda.pedidos.reduce((sum, p) => sum + p.precio * p.cantidad, 0);
 
-    if (cobroDto.montoAbonado < total) {
-      throw new BadRequestException(
-        'El monto abonado es insuficiente',
-      );
-    }
+    if (cobroDto.montoAbonado < total)
+      throw new BadRequestException('El monto abonado es insuficiente');
 
     const vuelto = cobroDto.montoAbonado - total;
 
     const [comandaCerrada] = await this.prisma.$transaction([
       this.prisma.comanda.update({
         where: { id },
-        data: {
-          estado: EstadoComanda.CERRADA,
-          total,
-          closedAt: new Date(),
-        },
+        data:  { estado: EstadoComanda.CERRADA, total, closedAt: new Date() },
       }),
       this.prisma.mesa.update({
         where: { id: comanda.mesaId },
-        data: { estado: EstadoMesa.LIBRE },
+        data:  { estado: EstadoMesa.LIBRE },
       }),
       this.prisma.cobro.create({
         data: {
-          comandaId: id,
-          metodoPago: cobroDto.metodoPago,
-          montoAbonado: cobroDto.montoAbonado,
+          comandaId:     id,
+          metodoPago:    cobroDto.metodoPago,
+          montoAbonado:  cobroDto.montoAbonado,
           vuelto,
           observaciones: cobroDto.observaciones,
         },
@@ -190,9 +187,7 @@ export class ComandasService {
     ]);
 
     const resultado = { ...comandaCerrada, total, vuelto };
-
     this.events.emitComandaCerrada(resultado);
-
     return resultado;
   }
 
@@ -203,38 +198,34 @@ export class ComandasService {
   async cancelar(id: number) {
     const comanda = await this.findById(id);
 
-    if (comanda.estado !== EstadoComanda.ABIERTA) {
-      throw new BadRequestException(
-        'Solo se pueden cancelar comandas ABIERTAS',
-      );
-    }
+    if (comanda.estado !== EstadoComanda.ABIERTA)
+      throw new BadRequestException('Solo se pueden cancelar comandas ABIERTAS');
 
-    const hayEntregados = comanda.pedidos.some(
-      (p) => p.estado === EstadoPedido.ENTREGADO,
-    );
-
-    if (hayEntregados) {
-      throw new BadRequestException(
-        'No se puede cancelar una comanda con pedidos entregados',
-      );
-    }
+    const hayEntregados = comanda.pedidos.some(p => p.estado === EstadoPedido.ENTREGADO);
+    if (hayEntregados)
+      throw new BadRequestException('No se puede cancelar una comanda con pedidos entregados');
 
     const [comandaCancelada] = await this.prisma.$transaction([
       this.prisma.comanda.update({
         where: { id },
-        data: {
-          estado: EstadoComanda.CANCELADA,
-          closedAt: new Date(),
-        },
+        data:  { estado: EstadoComanda.CANCELADA, closedAt: new Date() },
       }),
       this.prisma.mesa.update({
         where: { id: comanda.mesaId },
-        data: { estado: EstadoMesa.LIBRE },
+        data:  { estado: EstadoMesa.LIBRE },
       }),
     ]);
 
     this.events.emitComandaCancelada(comandaCancelada);
-
     return comandaCancelada;
+  }
+
+  // ─────────────────────────────────────────────
+  // TICKET
+  // ─────────────────────────────────────────────
+
+  async generarTicket(id: number) {
+    const comanda = await this.findById(id);
+    return this.ticketService.generarTicket(comanda);
   }
 }

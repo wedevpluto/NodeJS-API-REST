@@ -1,11 +1,18 @@
 import { Module } from '@nestjs/common';
-import { ArqueosService } from './arqueos.service';
-import { ArqueosController } from './arqueos.controller';
 import { PrismaModule } from '../database/prisma.module';
+import { ArqueosService } from './application/arqueos.service';
+import { PrismaArqueoRepository } from './infrastructure/prisma-arqueo.repository';
+import { ARQUEO_REPOSITORY } from './domain/arqueo.repository';
 
 @Module({
-  imports: [PrismaModule],
-  controllers: [ArqueosController],
-  providers: [ArqueosService],
+  imports: [PrismaModule], // 👈 ESTO FALTABA
+  providers: [
+    ArqueosService,
+    {
+      provide: ARQUEO_REPOSITORY,
+      useClass: PrismaArqueoRepository,
+    },
+  ],
+  exports: [ArqueosService],
 })
 export class ArqueosModule {}

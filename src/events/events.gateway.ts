@@ -57,4 +57,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to('caja').emit('comanda.cancelada', comanda);
     this.server.to('mozos').emit('comanda.cancelada', comanda);
   }
+
+  // Mozo pide cuenta → cajero
+  emitListaParaCobrar(comanda: any) {
+    this.server.to('caja').emit('comanda.lista_para_cobrar', comanda);
+  }
 }

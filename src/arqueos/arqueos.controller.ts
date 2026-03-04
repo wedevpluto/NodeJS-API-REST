@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
-import { ArqueosService } from './arqueos.service';
+import { ArqueosService } from './application/arqueos.service';
 import { CreateArqueoDto } from './dto/create-arqueo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
