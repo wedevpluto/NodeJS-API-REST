@@ -1,5 +1,7 @@
 # NodeJS API REST — Sistema de Gestión Gastronómica
 
+[![CI](https://github.com/wedevpluto/NodeJS-API-REST/actions/workflows/ci.yml/badge.svg)](https://github.com/wedevpluto/NodeJS-API-REST/actions/workflows/ci.yml)
+
 API REST desarrollada con arquitectura modular, orientada a la gestión operativa integral de establecimientos gastronómicos. Construida sobre tecnologías de industria actuales, ofrece una solución backend segura, escalable y de fácil integración con cualquier cliente frontend o móvil.
 
 ---
